@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="fa" id="html-root">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="page-title">اتللو</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/vazir-font@27.2.2/dist/font-face.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Vazir', Arial, sans-serif;
+        }
+        canvas {
+            border: 2px solid black;
+        }
+        .rtl {
+            direction: rtl;
+            text-align: right;
+        }
+        .ltr {
+            direction: ltr;
+            text-align: left;
+        }
+        #language-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        #language-modal.hidden {
+            display: none;
+        }
+        #sequences-display {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex justify-center items-center min-h-screen">
+    <!-- Language Selection Modal -->
+    <div id="language-modal">
+        <div class="bg-white p-6 rounded-lg shadow-lg">
+            <h2 id="select-language-text" class="text-xl mb-4">لطفاً زبان را انتخاب کنید / Please select a language</h2>
+            <div class="flex space-x-4">
+                <button id="lang-persian" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">فارسی</button>
+                <button id="lang-english" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">English</button>
+            </div>
+        </div>
+    </div>
+    <!-- Main Game -->
+    <div class="flex flex-col items-center p-4">
+        <div class="flex flex-row items-start space-x-4 space-x-reverse" id="main-container">
+            <!-- Controls -->
+            <div class="flex flex-col space-y-4 bg-white p-4 rounded-lg shadow" id="controls">
+                <label id="player-color-label" class="rtl">رنگ شما:</label>
+                <div class="flex flex-col space-y-2">
+                    <label><input type="radio" name="player_color" value="سیاه" checked> <span id="black-option">سیاه</span></label>
+                    <label><input type="radio" name="player_color" value="سفید"> <span id="white-option">سفید</span></label>
+                </div>
+                <button id="undo_button" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 disabled:bg-gray-400" disabled>عقب</button>
+                <button id="redo_button" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 disabled:bg-gray-400" disabled>جلو</button>
+                <label><input type="checkbox" id="hint_check"> <span id="hint-label">راهنما</span></label>
+                <label id="upload-book-label" class="rtl">بارگذاری کتاب:</label>
+                <input type="file" id="upload_book" accept=".json" class="rtl">
+                <button id="save_log_button" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">ذخیره حرکات</button>
+                <button id="reset_button" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">شروع مجدد</button>
+                <div id="turn-label">نوبتی: <span id="turn_show" class="font-bold">black</span></div>
+            </div>
+            <!-- Board -->
+            <div class="flex flex-col items-center">
+                <!-- Top column labels -->
+                <div class="flex">
+                    <div class="w-12"></div>
+                    <div class="flex space-x-2 space-x-reverse" id="top-labels">
+                        <span class="w-12 text-center">A</span><span class="w-12 text-center">B</span><span class="w-12 text-center">C</span>
+                        <span class="w-12 text-center">D</span><span class="w-12 text-center">E</span><span class="w-12 text-center">F</span>
+                        <span class="w-12 text-center">G</span><span class="w-12 text-center">H</span>
+                    </div>
+                    <div class="w-12"></div>
+                </div>
+                <!-- Board with row labels -->
+                <div class="flex">
+                    <div class="flex flex-col justify-around" id="left-labels">
+                        <span class="h-12 flex items-center">1</span><span class="h-12 flex items-center">2</span><span class="h-12 flex items-center">3</span>
+                        <span class="h-12 flex items-center">4</span><span class="h-12 flex items-center">5</span><span class="h-12 flex items-center">6</span>
+                        <span class="h-12 flex items-center">7</span><span class="h-12 flex items-center">8</span>
+                    </div>
+                    <canvas id="board" width="480" height="480"></canvas>
+                    <div class="flex flex-col justify-around" id="right-labels">
+                        <span class="h-12 flex items-center">1</span><span class="h-12 flex items-center">2</span><span class="h-12 flex items-center">3</span>
+                        <span class="h-12 flex items-center">4</span><span class="h-12 flex items-center">5</span><span class="h-12 flex items-center">6</span>
+                        <span class="h-12 flex items-center">7</span><span class="h-12 flex items-center">8</span>
+                    </div>
+                </div>
+                <!-- Bottom column labels -->
+                <div class="flex">
+                    <div class="w-12"></div>
+                    <div class="flex space-x-2 space-x-reverse" id="bottom-labels">
+                        <span class="w-12 text-center">A</span><span class="w-12 text-center">B</span><span class="w-12 text-center">C</span>
+                        <span class="w-12 text-center">D</span><span class="w-12 text-center">E</span><span class="w-12 text-center">F</span>
+                        <span class="w-12 text-center">G</span><span class="w-12 text-center">H</span>
+                    </div>
+                    <div class="w-12"></div>
+                </div>
+            </div>
+        </div>
+        <!-- Sequences Display -->
+        <div id="sequences-display" class="mt-4 bg-white p-4 rounded-lg shadow w-full max-w-2xl">
+            <h3 id="black-sequences-label" class="font-bold">دنباله‌های سیاه:</h3>
+            <p id="black-sequences" class="text-sm">هیچ دنباله‌ای بارگذاری نشده است.</p>
+            <h3 id="white-sequences-label" class="font-bold mt-2">دنباله‌های سفید:</h3>
+            <p id="white-sequences" class="text-sm">هیچ دنباله‌ای بارگذاری نشده است.</p>
+        </div>
+    </div>
+
+    <script>
+        const translations = {
+            fa: {
+                title: "اتللو",
+                select_language: "لطفاً زبان را انتخاب کنید",
+                player_color: "رنگ شما:",
+                black: "سیاه",
+                white: "سفید",
+                undo: "عقب",
+                redo: "جلو",
+                hint: "راهنما",
+                upload_book: "بارگذاری کتاب:",
+                save_log: "ذخیره حرکات",
+                reset: "شروع مجدد",
+                turn: "نوبتی:",
+                invalid_move: "این حرکت مجاز نیست.",
+                no_moves: "هیچ حرکتی برای {other} وجود ندارد. نوبت به {current} رسید.",
+                game_over: "بازی تمام شد! نتیجه: سیاه {black} - سفید {white}. برنده: {winner}",
+                book_loaded: "کتاب با موفقیت بارگذاری شد.",
+                book_error: "خطا در بارگذاری فایل: فایل باید JSON معتبر باشد.",
+                sequence_exists: "دنباله وجود دارد",
+                sequence_mismatch: "دنباله با کتاب مغایرت دارد",
+                moves_saved: "دنباله حرکات در فایل ذخیره شد.",
+                init_error: "خطا در راه‌اندازی بازی: {error}",
+                reset_error: "خطا در شروع مجدد: {error}",
+                draw_error: "خطا در رندر صفحه: {error}",
+                event_error: "خطا در تنظیم رویدادها: {error}",
+                save_state_error: "خطا در ذخیره وضعیت: {error}",
+                load_state_error: "خطا در بارگذاری وضعیت: {error}",
+                undo_error: "خطا در بازگشت حرکت: {error}",
+                redo_error: "خطا در تکرار حرکت: {error}",
+                place_piece_error: "خطا در قرار دادن مهره: {error}",
+                valid_move_error: "خطا در بررسی حرکت مجاز: {error}",
+                flip_error: "خطا در انیمیشن چرخش: {error}",
+                switch_player_error: "خطا در تغییر بازیکن: {error}",
+                update_moves_error: "خطا در به‌روزرسانی حرکات مجاز: {error}",
+                draw_hints_error: "خطا در نمایش راهنما: {error}",
+                game_over_error: "خطا در پایان بازی: {error}",
+                click_error: "خطا در پردازش کلیک: {error}",
+                book_load_error: "خطا در بارگذاری کتاب: {error}",
+                black_sequences: "دنباله‌های سیاه:",
+                white_sequences: "دنباله‌های سفید:",
+                no_sequences: "هیچ دنباله‌ای بارگذاری نشده است."
+            },
+            en: {
+                title: "Othello",
+                select_language: "Please select a language",
+                player_color: "Your color:",
+                black: "Black",
+                white: "White",
+                undo: "Undo",
+                redo: "Redo",
+                hint: "Hint",
+                upload_book: "Upload book:",
+                save_log: "Save moves",
+                reset: "Restart",
+                turn: "Turn:",
+                invalid_move: "This move is not valid.",
+                no_moves: "No moves available for {other}. Turn passes to {current}.",
+                game_over: "Game over! Score: Black {black} - White {white}. Winner: {winner}",
+                book_loaded: "Book loaded successfully.",
+                book_error: "Error loading file: File must be valid JSON.",
+                sequence_exists: "Sequence already exists",
+                sequence_mismatch: "Sequence does not match the book",
+                moves_saved: "Move sequence saved to file.",
+                init_error: "Error initializing game: {error}",
+                reset_error: "Error restarting game: {error}",
+                draw_error: "Error rendering board: {error}",
+                event_error: "Error setting up events: {error}",
+                save_state_error: "Error saving state: {error}",
+                load_state_error: "Error loading state: {error}",
+                undo_error: "Error undoing move: {error}",
+                redo_error: "Error redoing move: {error}",
+                place_piece_error: "Error placing piece: {error}",
+                valid_move_error: "Error checking valid move: {error}",
+                flip_error: "Error in flip animation: {error}",
+                switch_player_error: "Error switching player: {error}",
+                update_moves_error: "Error updating valid moves: {error}",
+                draw_hints_error: "Error drawing hints: {error}",
+                game_over_error: "Error ending game: {error}",
+                click_error: "Error processing click: {error}",
+                book_load_error: "Error loading book: {error}",
+                black_sequences: "Black Sequences:",
+                white_sequences: "White Sequences:",
+                no_sequences: "No sequences loaded."
+            }
+        };
+
+        class Othello {
+            constructor() {
+                try {
+                    this.language = null;
+                    this.board_size = 8;
+                    this.cell_size = 60;
+                    this.canvas = document.getElementById('board');
+                    if (!this.canvas.getContext) {
+                        throw new Error('Canvas not supported');
+                    }
+                    this.ctx = this.canvas.getContext('2d');
+                    this.sequence = '';
+                    this.sequence2 = '';
+                    this.history = [];
+                    this.current_player = 'black';
+                    this.player_color = this.getText('black');
+                    this.board = Array.from({ length: this.board_size }, () => Array(this.board_size).fill(''));
+                    this.NumOfMoves = 0;
+                    this.show_hints = false;
+                    this.valid_moves = [];
+                    this.hint_markers = {};
+                    this.black_moves = [];
+                    this.white_moves = [];
+
+                    this.setup_language_selection();
+                } catch (error) {
+                    console.error('Initialization error:', error);
+                    alert(this.getText('init_error').replace('{error}', error.message));
+                }
+            }
+
+            setup_language_selection() {
+                const modal = document.getElementById('language-modal');
+                const persianBtn = document.getElementById('lang-persian');
+                const englishBtn = document.getElementById('lang-english');
+
+                persianBtn.addEventListener('click', () => {
+                    this.setLanguage('fa');
+                    modal.classList.add('hidden');
+                    this.initializeGame();
+                });
+
+                englishBtn.addEventListener('click', () => {
+                    this.setLanguage('en');
+                    modal.classList.add('hidden');
+                    this.initializeGame();
+                });
+            }
+
+            setLanguage(lang) {
+                this.language = lang;
+                const isRTL = lang === 'fa';
+                document.getElementById('html-root').lang = lang;
+                document.getElementById('main-container').classList.toggle('space-x-reverse', isRTL);
+                document.getElementById('controls').classList.toggle('rtl', isRTL);
+                document.getElementById('controls').classList.toggle('ltr', !isRTL);
+                document.getElementById('upload_book').classList.toggle('rtl', isRTL);
+                document.getElementById('upload_book').classList.toggle('ltr', !isRTL);
+                document.getElementById('top-labels').classList.toggle('space-x-reverse', isRTL);
+                document.getElementById('bottom-labels').classList.toggle('space-x-reverse', isRTL);
+                document.getElementById('sequences-display').classList.toggle('rtl', isRTL);
+                document.getElementById('sequences-display').classList.toggle('ltr', !isRTL);
+                this.updateUIText();
+            }
+
+            getText(key, replacements = {}) {
+                let text = translations[this.language || 'fa'][key] || key;
+                for (const [k, v] of Object.entries(replacements)) {
+                    text = text.replace(`{${k}}`, v);
+                }
+                return text;
+            }
+
+            updateUIText() {
+                document.getElementById('page-title').textContent = this.getText('title');
+                document.getElementById('player-color-label').textContent = this.getText('player_color');
+                document.getElementById('black-option').textContent = this.getText('black');
+                document.getElementById('white-option').textContent = this.getText('white');
+                document.getElementById('undo_button').textContent = this.getText('undo');
+                document.getElementById('redo_button').textContent = this.getText('redo');
+                document.getElementById('hint-label').textContent = this.getText('hint');
+                document.getElementById('upload-book-label').textContent = this.getText('upload_book');
+                document.getElementById('save_log_button').textContent = this.getText('save_log');
+                document.getElementById('reset_button').textContent = this.getText('reset');
+                document.getElementById('turn-label').innerHTML = `${this.getText('turn')} <span id="turn_show" class="font-bold">${this.current_player}</span>`;
+                document.getElementById('black-sequences-label').textContent = this.getText('black_sequences');
+                document.getElementById('white-sequences-label').textContent = this.getText('white_sequences');
+                this.player_color = this.getText(this.player_color === this.getText('black') ? 'black' : 'white');
+                this.updateSequencesDisplay();
+            }
+
+            updateSequencesDisplay() {
+                const blackSequences = this.black_moves.length > 0 ? this.black_moves.join(', ') : this.getText('no_sequences');
+                const whiteSequences = this.white_moves.length > 0 ? this.white_moves.join(', ') : this.getText('no_sequences');
+                document.getElementById('black-sequences').textContent = blackSequences;
+                document.getElementById('white-sequences').textContent = whiteSequences;
+            }
+
+            initializeGame() {
+                try {
+                    this.reset_board_state();
+                    this.setup_event_listeners();
+                    this.draw_board();
+                    this.update_valid_moves();
+                } catch (error) {
+                    console.error('Game initialization error:', error);
+                    alert(this.getText('init_error').replace('{error}', error.message));
+                }
+            }
+
+            reset_board_state() {
+                this.board = Array.from({ length: this.board_size }, () => Array(this.board_size).fill(''));
+                this.board[3][3] = 'white';
+                this.board[3][4] = 'black';
+                this.board[4][3] = 'black';
+                this.board[4][4] = 'white';
+            }
+
+            reset_game() {
+                try {
+                    this.reset_board_state();
+                    this.current_player = 'black';
+                    this.history = [];
+                    this.NumOfMoves = 0;
+                    this.sequence = '';
+                    this.sequence2 = '';
+                    this.draw_board();
+                    this.update_valid_moves();
+                    document.getElementById('undo_button').disabled = true;
+                    document.getElementById('redo_button').disabled = true;
+                    document.getElementById('turn_show').textContent = this.current_player;
+                } catch (error) {
+                    console.error('Reset error:', error);
+                    alert(this.getText('reset_error').replace('{error}', error.message));
+                }
+            }
+
+            draw_board() {
+                try {
+                    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                    for (let i = 0; i < this.board_size; i++) {
+                        for (let j = 0; j < this.board_size; j++) {
+                            const x1 = j * this.cell_size;
+                            const y1 = i * this.cell_size;
+                            this.ctx.fillStyle = (i + j) % 2 === 0 ? 'green' : 'forestgreen';
+                            this.ctx.fillRect(x1, y1, this.cell_size, this.cell_size);
+                            this.ctx.strokeStyle = 'black';
+                            this.ctx.strokeRect(x1, y1, this.cell_size, this.cell_size);
+
+                            const piece = this.board[i][j];
+                            if (piece) {
+                                const center_x = x1 + this.cell_size / 2;
+                                const center_y = y1 + this.cell_size / 2;
+                                this.ctx.beginPath();
+                                this.ctx.arc(center_x, center_y, this.cell_size / 3, 0, 2 * Math.PI);
+                                this.ctx.fillStyle = piece;
+                                this.ctx.fill();
+                                this.ctx.strokeStyle = 'black';
+                                this.ctx.stroke();
+                            }
+                        }
+                    }
+                    if (this.show_hints) {
+                        this.draw_hints();
+                    }
+                } catch (error) {
+                    console.error('Draw board error:', error);
+                    alert(this.getText('draw_error').replace('{error}', error.message));
+                }
+            }
+
+            setup_event_listeners() {
+                try {
+                    this.canvas.addEventListener('click', (event) => this.on_click(event));
+                    document.getElementById('undo_button').addEventListener('click', () => this.undo_move());
+                    document.getElementById('redo_button').addEventListener('click', () => this.redo_move());
+                    document.getElementById('hint_check').addEventListener('change', (e) => {
+                        this.show_hints = e.target.checked;
+                        this.draw_board();
+                    });
+                    document.getElementById('save_log_button').addEventListener('click', () => this.save_game_log());
+                    document.getElementById('reset_button').addEventListener('click', () => this.reset_game());
+                    document.querySelectorAll('input[name="player_color"]').forEach(radio => {
+                        radio.addEventListener('change', (e) => {
+                            this.player_color = e.target.value;
+                        });
+                    });
+                    document.getElementById('upload_book').addEventListener('change', (e) => this.load_book(e));
+                } catch (error) {
+                    console.error('Event listener error:', error);
+                    alert(this.getText('event_error').replace('{error}', error.message));
+                }
+            }
+
+            load_book(event) {
+                try {
+                    const file = event.target.files[0];
+                    if (!file) {
+                        console.log('No file selected');
+                        return;
+                    }
+
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        try {
+                            const data = JSON.parse(e.target.result);
+                            if (!data.black_moves || !data.white_moves) {
+                                throw new Error('Invalid JSON structure: Missing black_moves or white_moves');
+                            }
+                            this.black_moves = data.black_moves.filter(move => typeof move === 'string' && move.length >= 2);
+                            this.white_moves = data.white_moves.filter(move => typeof move === 'string' && move.length >= 2);
+                            console.log('Loaded black_moves:', this.black_moves);
+                            console.log('Loaded white_moves:', this.white_moves);
+                            this.updateSequencesDisplay();
+                            alert(this.getText('book_loaded'));
+                        } catch (err) {
+                            console.error('File parse error:', err);
+                            alert(this.getText('book_error'));
+                        }
+                    };
+                    reader.onerror = () => {
+                        console.error('File read error');
+                        alert(this.getText('book_error'));
+                    };
+                    reader.readAsText(file);
+                } catch (error) {
+                    console.error('Load book error:', error);
+                    alert(this.getText('book_load_error').replace('{error}', error.message));
+                }
+            }
+
+            save_game_log() {
+                try {
+                    let moves = this.player_color === this.getText('black') ? [...this.black_moves] : [...this.white_moves];
+                    let number = this.NumOfMoves;
+                    if (this.player_color === this.getText('black') && this.NumOfMoves % 2 === 0) {
+                        number--;
+                    } else if (this.player_color === this.getText('white') && this.NumOfMoves % 2 === 1) {
+                        number--;
+                    }
+                    console.log('Saving sequence:', this.sequence, 'sequence2:', this.sequence2, 'number:', number);
+
+                    let isValid = true;
+                    for (let line of moves) {
+                        line = line.trim();
+                        let N = Math.min(number, Math.floor(line.length / 2));
+                        if (line) {
+                            if (this.NumOfMoves >= 1) {
+                                if ((this.sequence.slice(0, 2) !== line.slice(0, 2)) && (this.sequence2.slice(0, 2) !== line.slice(0, 2))) {
+                                    console.log('Mismatch on first move:', this.sequence.slice(0, 2), line.slice(0, 2));
+                                    alert(this.getText('sequence_mismatch'));
+                                    isValid = false;
+                                    break;
+                                }
+                            }
+                            if (this.sequence.slice(0, 2 * number) === line.slice(0, 2 * number) ||
+                                this.sequence2.slice(0, 2 * number) === line.slice(0, 2 * number)) {
+                                console.log('Sequence exists:', this.sequence.slice(0, 2 * number));
+                                alert(this.getText('sequence_exists'));
+                                isValid = false;
+                                break;
+                            }
+                            for (let R = N; R >= 2; R -= 2) {
+                                if ((this.sequence.slice(0, 2 * (R - 1)) === line.slice(0, 2 * (R - 1))) &&
+                                    (this.sequence.slice(2 * (R - 1), 2 * R) !== line.slice(2 * (R - 1), 2 * R))) {
+                                    console.log('Mismatch at position', R, ':', this.sequence.slice(0, 2 * R), line.slice(0, 2 * R));
+                                    alert(this.getText('sequence_mismatch'));
+                                    isValid = false;
+                                    break;
+                                }
+                            }
+                            if (!isValid) break;
+                        }
+                    }
+
+                    if (isValid) {
+                        const newSequence = this.sequence.slice(0, 2 * this.NumOfMoves);
+                        const newSequence2 = this.sequence2.slice(0, 2 * this.NumOfMoves);
+                        if (newSequence) moves.push(newSequence);
+                        if (newSequence2) moves.push(newSequence2);
+                        if (this.player_color === this.getText('black')) {
+                            this.black_moves = moves;
+                        } else {
+                            this.white_moves = moves;
+                        }
+                        const data = {
+                            black_moves: this.black_moves,
+                            white_moves: this.white_moves
+                        };
+                        console.log('Saving data:', data);
+                        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = 'othello_moves.json';
+                        a.click();
+                        URL.revokeObjectURL(url);
+                        this.updateSequencesDisplay();
+                        alert(this.getText('moves_saved'));
+                    }
+                } catch (error) {
+                    console.error('Save game log error:', error);
+                    alert(this.getText('save_log_error').replace('{error}', error.message));
+                }
+            }
+
+            save_state() {
+                try {
+                    this.history.push([this.board.map(row => [...row]), this.current_player]);
+                    document.getElementById('undo_button').disabled = false;
+                    document.getElementById('redo_button').disabled = true;
+                } catch (error) {
+                    console.error('Save state error:', error);
+                    alert(this.getText('save_state_error').replace('{error}', error.message));
+                }
+            }
+
+            load_state(index) {
+                try {
+                    if (index >= 0 && index < this.history.length) {
+                        this.board = this.history[index][0].map(row => [...row]);
+                        this.current_player = this.history[index][1];
+                        document.getElementById('turn_show').textContent = this.current_player;
+                        this.draw_board();
+                        this.update_valid_moves();
+                        document.getElementById('undo_button').disabled = index === 0;
+                        document.getElementById('redo_button').disabled = index === this.history.length - 1;
+                    }
+                } catch (error) {
+                    console.error('Load state error:', error);
+                    alert(this.getText('load_state_error').replace('{error}', error.message));
+                }
+            }
+
+            undo_move() {
+                try {
+                    if (this.NumOfMoves > 0) {
+                        this.NumOfMoves--;
+                        this.switch_player();
+                        this.load_state(this.NumOfMoves);
+                    }
+                } catch (error) {
+                    console.error('Undo move error:', error);
+                    alert(this.getText('undo_error').replace('{error}', error.message));
+                }
+            }
+
+            redo_move() {
+                try {
+                    if (this.NumOfMoves < this.history.length - 1) {
+                        this.NumOfMoves++;
+                        this.switch_player();
+                        this.load_state(this.NumOfMoves);
+                    }
+                } catch (error) {
+                    console.error('Redo move error:', error);
+                    alert(this.getText('redo_error').replace('{error}', error.message));
+                }
+            }
+
+            place_piece(row, col) {
+                try {
+                    this.board[row][col] = this.current_player;
+                    this.animate_flip(row, col);
+                } catch (error) {
+                    console.error('Place piece error:', error);
+                    alert(this.getText('place_piece_error').replace('{error}', error.message));
+                }
+            }
+
+            is_valid_move(row, col) {
+                try {
+                    if (row < 0 || row >= this.board_size || col < 0 || col >= this.board_size || this.board[row][col] !== '') {
+                        return false;
+                    }
+                    const opponent = this.current_player === 'black' ? 'white' : 'black';
+                    const directions = [[0, 1], [0, -1], [1, 0], [-1, 0], [1, 1], [1, -1], [-1, 1], [-1, -1]];
+
+                    for (let [dr, dc] of directions) {
+                        let r = row + dr, c = col + dc;
+                        let found_opponent = false;
+                        while (r >= 0 && r < this.board_size && c >= 0 && c < this.board_size && this.board[r][c] === opponent) {
+                            found_opponent = true;
+                            r += dr;
+                            c += dc;
+                        }
+                        if (r >= 0 && r < this.board_size && c >= 0 && c < this.board_size && this.board[r][c] === this.current_player && found_opponent) {
+                            return true;
+                        }
+                    }
+                    return false;
+                } catch (error) {
+                    console.error('Is valid move error:', error);
+                    alert(this.getText('valid_move_error').replace('{error}', error.message));
+                    return false;
+                }
+            }
+
+            animate_flip(row, col) {
+                try {
+                    const opponent = this.current_player === 'black' ? 'white' : 'black';
+                    const directions = [[0, 1], [0, -1], [1, 0], [-1, 0], [1, 1], [1, -1], [-1, 1], [-1, -1]];
+                    let pieces_to_flip = [];
+
+                    for (let [dr, dc] of directions) {
+                        let temp_flip = [];
+                        let r = row + dr, c = col + dc;
+                        while (r >= 0 && r < this.board_size && c >= 0 && c < this.board_size && this.board[r][c] === opponent) {
+                            temp_flip.push([r, c]);
+                            r += dr;
+                            c += dc;
+                        }
+                        if (r >= 0 && r < this.board_size && c >= 0 && c < this.board_size && this.board[r][c] === this.current_player && temp_flip.length) {
+                            pieces_to_flip.push(...temp_flip);
+                        }
+                    }
+
+                    for (let [r, c] of pieces_to_flip) {
+                        this.board[r][c] = this.current_player;
+                    }
+                    this.draw_board();
+                } catch (error) {
+                    console.error('Animate flip error:', error);
+                    alert(this.getText('flip_error').replace('{error}', error.message));
+                }
+            }
+
+            switch_player() {
+                try {
+                    this.current_player = this.current_player === 'black' ? 'white' : 'black';
+                    document.getElementById('turn_show').textContent = this.current_player;
+                } catch (error) {
+                    console.error('Switch player error:', error);
+                    alert(this.getText('switch_player_error').replace('{error}', error.message));
+                }
+            }
+
+            update_valid_moves() {
+                try {
+                    this.valid_moves = [];
+                    for (let i = 0; i < this.board_size; i++) {
+                        for (let j = 0; j < this.board_size; j++) {
+                            if (this.is_valid_move(i, j)) {
+                                this.valid_moves.push([i, j]);
+                            }
+                        }
+                    }
+                    this.draw_board();
+
+                    if (!this.valid_moves.length) {
+                        this.switch_player();
+                        let valid_moves_other = [];
+                        for (let i = 0; i < this.board_size; i++) {
+                            for (let j = 0; j < this.board_size; j++) {
+                                if (this.is_valid_move(i, j)) {
+                                    valid_moves_other.push([i, j]);
+                                }
+                            }
+                        }
+                        if (!valid_moves_other.length) {
+                            this.game_over();
+                        } else {
+                            const current = this.current_player === 'black' ? this.getText('black') : this.getText('white');
+                            const other = this.current_player === 'black' ? this.getText('white') : this.getText('black');
+                            alert(this.getText('no_moves').replace('{other}', other).replace('{current}', current));
+                        }
+                    }
+                } catch (error) {
+                    console.error('Update valid moves error:', error);
+                    alert(this.getText('update_moves_error').replace('{error}', error.message));
+                }
+            }
+
+            draw_hints() {
+                try {
+                    for (let [r, c] of this.valid_moves) {
+                        const x = c * this.cell_size + this.cell_size / 2;
+                        const y = r * this.cell_size + this.cell_size / 2;
+                        this.ctx.beginPath();
+                        this.ctx.arc(x, y, this.cell_size / 8, 0, 2 * Math.PI);
+                        this.ctx.fillStyle = 'yellow';
+                        this.ctx.fill();
+                    }
+                } catch (error) {
+                    console.error('Draw hints error:', error);
+                    alert(this.getText('draw_hints_error').replace('{error}', error.message));
+                }
+            }
+
+            game_over() {
+                try {
+                    let black_count = 0, white_count = 0;
+                    for (let row of this.board) {
+                        black_count += row.filter(x => x === 'black').length;
+                        white_count += row.filter(x => x === 'white').length;
+                    }
+                    const winner = black_count > white_count ? this.getText('black') : white_count > black_count ? this.getText('white') : (this.language === 'fa' ? 'مساوی' : 'Tie');
+                    alert(this.getText('game_over').replace('{black}', black_count).replace('{white}', white_count).replace('{winner}', winner));
+                } catch (error) {
+                    console.error('Game over error:', error);
+                    alert(this.getText('game_over_error').replace('{error}', error.message));
+                }
+            }
+
+            on_click(event) {
+                try {
+                    const rect = this.canvas.getBoundingClientRect();
+                    const col = Math.floor((event.clientX - rect.left) / this.cell_size);
+                    const row = Math.floor((event.clientY - rect.top) / this.cell_size);
+
+                    if (this.NumOfMoves === 0) {
+                        this.history.push([this.board.map(row => [...row]), this.current_player]);
+                    }
+
+                    if (this.is_valid_move(row, col)) {
+                        if (this.NumOfMoves < this.history.length - 1) {
+                            this.history = this.history.slice(0, this.NumOfMoves + 1);
+                            document.getElementById('redo_button').disabled = true;
+                        }
+                        this.place_piece(row, col);
+                        this.switch_player();
+                        this.update_valid_moves();
+                        document.getElementById('redo_button').disabled = false;
+                        this.sequence = this.sequence.slice(0, 2 * this.NumOfMoves) + String.fromCharCode(65 + col) + (row + 1);
+                        this.sequence2 = this.sequence2.slice(0, 2 * this.NumOfMoves) + String.fromCharCode(68.5 + (68.5 - (65 + col))) + (4.5 + (4.5 - (row + 1)));
+                        this.NumOfMoves++;
+                        this.save_state();
+                    } else {
+                        alert(this.getText('invalid_move'));
+                    }
+                } catch (error) {
+                    console.error('Click event error:', error);
+                    alert(this.getText('click_error').replace('{error}', error.message));
+                }
+            }
+        }
+
+        try {
+            const game = new Othello();
+        } catch (error) {
+            console.error('Game initialization error:', error);
+            alert(translations.fa.init_error.replace('{error}', error.message));
+        }
+    </script>
+</body>
+</html>
